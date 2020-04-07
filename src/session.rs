@@ -29,9 +29,9 @@ impl SessionKey {
 
     fn get_ephemeral(&self, dst: &mut [u8; 16], index: u32) {
         let key = hmac::Key::new(hmac::HMAC_SHA256, &self.key);
+        // let aes_key = hmac::sign(&key, b"Decentralized Privacy-Preserving Proximity Tracing");
         let aes_key = hmac::sign(&key, b"broadcast key");
         let mut nonce_serial = [0u8; 16];
-        nonce_serial[0..8].copy_from_slice(b"AES_PRNG");
         nonce_serial[12..16].copy_from_slice(&index.to_be_bytes());
         let mut block = GenericArray::clone_from_slice(&nonce_serial);
         let cipher = Aes256::new(aes_key.as_ref().into());
