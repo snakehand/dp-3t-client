@@ -18,6 +18,12 @@ struct SessionKey {
     key: [u8; 32],
 }
 
+#[derive(Debug, PartialEq, Eq)]
+pub struct Ephemeral {
+    pub day: u32,
+    pub token: [u8; 16],
+}
+
 impl SessionKey {
     fn next(&self) -> SessionKey {
         let julian_day = self.julian_day + 1;
@@ -27,16 +33,23 @@ impl SessionKey {
         SessionKey { julian_day, key }
     }
 
-    fn get_ephemeral(&self, dst: &mut [u8; 16], index: u32) {
+    fn get_ephemeral(&self, num_tokens: u32) -> Vec<Ephemeral> {
         let key = hmac::Key::new(hmac::HMAC_SHA256, &self.key);
         // let aes_key = hmac::sign(&key, b"Decentralized Privacy-Preserving Proximity Tracing");
         let aes_key = hmac::sign(&key, b"broadcast key");
-        let mut nonce_serial = [0u8; 16];
-        nonce_serial[12..16].copy_from_slice(&index.to_be_bytes());
-        let mut block = GenericArray::clone_from_slice(&nonce_serial);
+        let mut serial = [0u8; 16];
         let cipher = Aes256::new(aes_key.as_ref().into());
-        cipher.encrypt_block(&mut block);
-        dst.copy_from_slice(&block);
+        let mut result = Vec::with_capacity(num_tokens as usize);
+        let day = self.julian_day;
+        for i in 0..num_tokens {
+            serial[12..16].copy_from_slice(&i.to_be_bytes());
+            let mut block = GenericArray::clone_from_slice(&serial);
+            cipher.encrypt_block(&mut block);
+            let mut token = [0; 16];
+            token.copy_from_slice(&block);
+            result.push(Ephemeral { day, token })
+        }
+        result
     }
 }
 
@@ -106,7 +119,7 @@ impl Session {
         }
     }
 
-    pub fn get_ephemeral(&mut self, dst: &mut [u8; 16], index: u32) -> Result<(), &'static str> {
+    pub fn get_ephemeral(&mut self, num_tokens: u32) -> Result<Vec<Ephemeral>, &'static str> {
         if self.recent_keys.is_empty() {
             return Err("No keys");
         }
@@ -120,8 +133,7 @@ impl Session {
         let mut bri = 0;
         for (i, k) in self.recent_keys.iter().enumerate() {
             if k.julian_day == julian_day {
-                k.get_ephemeral(dst, index);
-                return Ok(());
+                return Ok(k.get_ephemeral(num_tokens));
             }
             if k.julian_day > julian_day {
                 bri = i;
@@ -134,20 +146,20 @@ impl Session {
             bri - 1
         };
         let mut key = self.recent_keys[last_index];
-        while key.julian_day < julian_day {
+        let tokens = loop {
             key = key.next();
             self.recent_keys.push(key);
             if key.julian_day == julian_day {
-                key.get_ephemeral(dst, index);
+                break key.get_ephemeral(num_tokens);
             }
-        }
+        };
         self.recent_keys
             .retain(|k| k.julian_day + MAX_HISTORY >= julian_day);
         self.recent_keys.sort();
         if let Some(path) = self.path.take() {
             let _ = self.save(&path);
         }
-        Ok(())
+        Ok(tokens)
     }
 
     pub fn set_future(&mut self, future: u32) {
@@ -171,18 +183,12 @@ impl Session {
 pub struct ReplayKey {
     key: SessionKey,
     end_day: u32,
-    current_index: u32,
-    max_index: u32,
-}
-
-#[derive(Debug)]
-pub struct Ephemeral {
-    pub day: u32,
-    pub token: [u8; 16],
+    num_tokens: u32,
+    cache: Vec<Ephemeral>,
 }
 
 impl ReplayKey {
-    pub fn new(start_day: u32, end_day: u32, max_index: u32, key: &[u8; 32]) -> ReplayKey {
+    pub fn new(start_day: u32, end_day: u32, num_tokens: u32, key: &[u8; 32]) -> ReplayKey {
         let key = SessionKey {
             julian_day: start_day,
             key: *key,
@@ -190,8 +196,8 @@ impl ReplayKey {
         ReplayKey {
             key,
             end_day,
-            current_index: 0,
-            max_index,
+            num_tokens,
+            cache: Vec::new(),
         }
     }
 }
@@ -200,19 +206,17 @@ impl Iterator for ReplayKey {
     type Item = Ephemeral;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.current_index >= self.max_index {
-            self.current_index = 0;
-            self.key = self.key.next();
-        }
+        let last_key = if !self.cache.is_empty() {
+            return self.cache.pop();
+        } else {
+            let last = self.key;
+            self.key = last.next();
+            last
+        };
         if self.key.julian_day > self.end_day {
             return None;
         }
-        let mut eph = Ephemeral {
-            day: self.key.julian_day,
-            token: [0; 16],
-        };
-        self.key.get_ephemeral(&mut eph.token, self.current_index);
-        self.current_index += 1;
-        Some(eph)
+        self.cache = last_key.get_ephemeral(self.num_tokens);
+        self.cache.pop()
     }
 }
