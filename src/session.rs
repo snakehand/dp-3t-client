@@ -9,6 +9,7 @@ use std::io::prelude::*;
 use std::iter::Iterator;
 use std::path::PathBuf;
 use std::time::SystemTime;
+use std::fmt;
 
 const MAX_HISTORY: u32 = 14;
 
@@ -18,10 +19,24 @@ pub struct SessionKey {
     pub key: [u8; 32],
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(PartialEq, Eq)]
 pub struct Ephemeral {
     pub day: u32,
     pub token: [u8; 16],
+}
+
+impl fmt::Display for Ephemeral {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let hex_string = hex::encode(self.token);
+        write!(f, "Ephemeral(day:{}, token:{})", self.day, hex_string)
+    }
+}
+
+impl fmt::Debug for Ephemeral {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let hex_string = hex::encode(self.token);
+        write!(f, "Ephemeral(day:{}, token:{})", self.day, hex_string)
+    }
 }
 
 impl SessionKey {
