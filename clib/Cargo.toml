@@ -1,0 +1,14 @@
+[package]
+name = "dp3t"
+version = "0.1.0"
+authors = ["Frank Andrew Stevenson"]
+edition = "2018"
+
+[lib]
+name = "dp3t"
+crate-type = ["staticlib", "cdylib"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+dp-3t-client = { path = "../" }
