@@ -4,7 +4,7 @@ pub mod session;
 
 #[cfg(test)]
 mod tests {
-    use crate::session::{ReplayKey, Session};
+    use crate::session::{ReplayKey, Session, SessionKey};
     use hex::FromHex;
     use std::path::PathBuf;
 
@@ -51,25 +51,25 @@ mod tests {
 
     #[test]
     fn test_compat1() {
-        let key = <[u8; 32]>::from_hex(
-            "a02b24fe26cd8607424cd21ec8240da2c1f4294ae39fc0d90c38121d9229f943",
+        let key = [0; 32];
+        let julian_day = 0;
+        let sk = SessionKey { julian_day, key };
+        let key2 = <[u8; 32]>::from_hex(
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
         )
         .unwrap();
+        let sk2 = sk.next();
+        assert_eq!(key2, sk2.key);
         let ephemerals = [
-            "59efe619ad0db70807b71ba0c0a120d1",
-            "25063bbcb6858f7ee77b4013f27685c0",
-            "92f2957f3b35d506214f4f578e9a8c31",
-            "2d3931973a075f801ac213dc8105c4c0",
-            "9658c6a552d58af78c2317828da23c5c",
-            "7c97b737eebf34e2e5d4181eb294a056",
-            "fbea2ce4015cd406c8e1656b66e18b0e",
-            "aefc05e3dc44b962e29324bf42c79566",
+            "c71d3e89927435b2aae42be7e7aea70a",
+            "6c4902c119d6a7ada139677983ef02b6",
+            "034015608c5a55672315cb614f5a94a3",
+            "a747e729bf2e3de3ec6ecbdb0f889f5b",
         ];
-        for eph_str in &ephemerals {
-            let mut rplay = ReplayKey::new(0, 1, 8, &key);
-            let eph = <[u8; 16]>::from_hex(eph_str).unwrap();
-            let found = rplay.any(|e| e.token == eph);
-            // assert!(found);
+        let ephems = sk.get_ephemeral(5);
+        for (i, eph_str) in ephemerals.iter().enumerate() {
+            let eph_tst = <[u8; 16]>::from_hex(eph_str).unwrap();
+            assert_eq!(eph_tst, ephems[4 - i].token);
         }
     }
 }

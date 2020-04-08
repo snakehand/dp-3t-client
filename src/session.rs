@@ -13,9 +13,9 @@ use std::time::SystemTime;
 const MAX_HISTORY: u32 = 14;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, PartialOrd, Ord, Copy, Clone)]
-struct SessionKey {
-    julian_day: u32,
-    key: [u8; 32],
+pub struct SessionKey {
+    pub julian_day: u32,
+    pub key: [u8; 32],
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -25,7 +25,7 @@ pub struct Ephemeral {
 }
 
 impl SessionKey {
-    fn next(&self) -> SessionKey {
+    pub fn next(&self) -> SessionKey {
         let julian_day = self.julian_day + 1;
         let mut key = [0; 32];
         let hash = digest::digest(&digest::SHA256, &self.key);
@@ -33,15 +33,14 @@ impl SessionKey {
         SessionKey { julian_day, key }
     }
 
-    fn get_ephemeral(&self, num_tokens: u32) -> Vec<Ephemeral> {
+    pub fn get_ephemeral(&self, num_tokens: u32) -> Vec<Ephemeral> {
         let key = hmac::Key::new(hmac::HMAC_SHA256, &self.key);
-        // let aes_key = hmac::sign(&key, b"Decentralized Privacy-Preserving Proximity Tracing");
-        let aes_key = hmac::sign(&key, b"broadcast key");
-        let mut serial = [0u8; 16];
+        let aes_key = hmac::sign(&key, b"Decentralized Privacy-Preserving Proximity Tracing");
         let cipher = Aes256::new(aes_key.as_ref().into());
         let mut result = Vec::with_capacity(num_tokens as usize);
         let day = self.julian_day;
         for i in 0..num_tokens {
+            let mut serial = [0u8; 16];
             serial[12..16].copy_from_slice(&i.to_be_bytes());
             let mut block = GenericArray::clone_from_slice(&serial);
             cipher.encrypt_block(&mut block);
