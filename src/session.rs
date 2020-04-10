@@ -12,6 +12,7 @@ use std::time::SystemTime;
 use std::fmt;
 
 const MAX_HISTORY: u32 = 14;
+const JULIAN_DAY_1970: u64 = 2440587;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, PartialOrd, Ord, Copy, Clone)]
 pub struct SessionKey {
@@ -101,7 +102,7 @@ impl Session {
         let now = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
             .unwrap();
-        let julian_day = ((now.as_secs() / (24 * 3600)) + 2_440_588) as u32;
+        let julian_day = ((now.as_secs() / (24 * 3600)) + JULIAN_DAY_1970) as u32;
         let rnd = ring::rand::SystemRandom::new();
         let mut key = [0; 32];
         rnd.fill(&mut key).unwrap();
@@ -140,7 +141,7 @@ impl Session {
         let now = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
             .unwrap();
-        let julian_day = ((now.as_secs() / (24 * 3600)) + 2_440_588) as u32 + self.test_future;
+        let julian_day = ((now.as_secs() / (24 * 3600)) + JULIAN_DAY_1970) as u32 + self.test_future;
         if julian_day < self.recent_keys[0].julian_day {
             return Err("No keys from past available");
         }
@@ -184,7 +185,7 @@ impl Session {
         let now = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
             .unwrap();
-        let julian_day = ((now.as_secs() / (24 * 3600)) + 2_440_588) as u32 + self.test_future;
+        let julian_day = ((now.as_secs() / (24 * 3600)) + JULIAN_DAY_1970) as u32 + self.test_future;
         for k in &self.recent_keys {
             if k.julian_day + MAX_HISTORY >= julian_day {
                 return Some((k.julian_day, k.key));
