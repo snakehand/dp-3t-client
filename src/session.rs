@@ -4,12 +4,12 @@ use aes::Aes256;
 use ring::rand::SecureRandom;
 use ring::{digest, hmac};
 use serde::{Deserialize, Serialize};
+use std::fmt;
 use std::fs::File;
 use std::io::prelude::*;
 use std::iter::Iterator;
 use std::path::PathBuf;
 use std::time::SystemTime;
-use std::fmt;
 
 const MAX_HISTORY: u32 = 14;
 const JULIAN_DAY_1970: u64 = 2440587;
@@ -51,7 +51,9 @@ impl SessionKey {
 
     pub fn get_ephemeral(&self, num_tokens: u32) -> Vec<Ephemeral> {
         let key = hmac::Key::new(hmac::HMAC_SHA256, &self.key);
-        let aes_key = hmac::sign(&key, b"Decentralized Privacy-Preserving Proximity Tracing");
+        let aes_key = hmac::sign(&key, b"Broadcast key");
+        // let hex_string = hex::encode(aes_key);
+        // println!("AES key:{})", hex_string);
         let cipher = Aes256::new(aes_key.as_ref().into());
         let mut result = Vec::with_capacity(num_tokens as usize);
         let day = self.julian_day;
@@ -141,7 +143,8 @@ impl Session {
         let now = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
             .unwrap();
-        let julian_day = ((now.as_secs() / (24 * 3600)) + JULIAN_DAY_1970) as u32 + self.test_future;
+        let julian_day =
+            ((now.as_secs() / (24 * 3600)) + JULIAN_DAY_1970) as u32 + self.test_future;
         if julian_day < self.recent_keys[0].julian_day {
             return Err("No keys from past available");
         }
@@ -185,7 +188,8 @@ impl Session {
         let now = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
             .unwrap();
-        let julian_day = ((now.as_secs() / (24 * 3600)) + JULIAN_DAY_1970) as u32 + self.test_future;
+        let julian_day =
+            ((now.as_secs() / (24 * 3600)) + JULIAN_DAY_1970) as u32 + self.test_future;
         for k in &self.recent_keys {
             if k.julian_day + MAX_HISTORY >= julian_day {
                 return Some((k.julian_day, k.key));

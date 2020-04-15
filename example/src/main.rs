@@ -15,7 +15,7 @@ fn speed_test() {
 
 fn main() {
     let key: [u8; 32] = [0; 32];
-    let rp = ReplayKey::new(0, 1, 8, &key);
+    let rp = ReplayKey::new(0, 1, 9, &key);
     let mut ephm: Vec<Ephemeral> = rp.collect();
     ephm.reverse(); // Reverse since Replay Key pops off from the end of vector for efficiency reasons
     for (i, e) in ephm.iter().enumerate() {

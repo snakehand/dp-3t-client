@@ -60,16 +60,23 @@ mod tests {
         .unwrap();
         let sk2 = sk.next();
         assert_eq!(key2, sk2.key);
+    }
+
+    #[test]
+    fn test_compat2() {
+        let key = [0; 32];
+        let julian_day = 0;
+        let sk = SessionKey { julian_day, key };
         let ephemerals = [
-            "c71d3e89927435b2aae42be7e7aea70a",
-            "6c4902c119d6a7ada139677983ef02b6",
-            "034015608c5a55672315cb614f5a94a3",
-            "a747e729bf2e3de3ec6ecbdb0f889f5b",
+            "374d270a0c559ad1e4672fb1688ae5ad",
+            "964ae662b3f174814660846d4f9c11e2",
+            "d86e56bb702117b8cf20dc4aadd42310",
+            "8fd521e6c47060efcbfdb9b801c30743",
         ];
-        let ephems = sk.get_ephemeral(5);
+        let ephems = sk.get_ephemeral(4);
         for (i, eph_str) in ephemerals.iter().enumerate() {
             let eph_tst = <[u8; 16]>::from_hex(eph_str).unwrap();
-            assert_eq!(eph_tst, ephems[4 - i].token);
+            assert_eq!(eph_tst, ephems[3 - i].token);
         }
     }
 }
